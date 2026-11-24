@@ -1,0 +1,24 @@
+Terraform v1.16.1
+on linux_amd64
+
+Your version of Terraform is out of date! The latest version
+is 1.17.2. You can update by downloading from https://developer.hashicorp.com/terraform/install
+Version: 1.20.1
+Build Commit: 72f30d678c4fc1ff1eef8b5f11b1220761d16d0b-dirty
+Build Timestamp: 2026-08-28T07:25:34Z
+Build Hostname: 
+Go Version: go1.27.0
+Platform: linux/amd64
+Rego Version: v1
+WebAssembly: available
+Conftest: 0.69.0
+OPA: 1.19.0
+TFLint version 0.66.0
++ ruleset.terraform (0.17.0-bundled)
+3.3.16
+
+A new version of Semgrep is available. See https://semgrep.dev/docs/upgrading
+
+Versions prior to 1.76.0 are no longer supported by Semgrep.dev, please upgrade.
+1.56.0
+pytest 9.1.1
