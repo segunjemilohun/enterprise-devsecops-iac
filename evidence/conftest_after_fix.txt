@@ -1,0 +1,8 @@
+[33mWARN[0m - /home/ubuntu/iac-demo/plan.json - graph_security - G2: aws_db_instance.main exports no logs to CloudWatch (audit trail)
+[31mFAIL[0m - /home/ubuntu/iac-demo/plan.json - graph_security - G1: aws_iam_role.deployer can iam:PassRole on a wildcard target and create compute (lambda:createfunction)
+[31mFAIL[0m - /home/ubuntu/iac-demo/plan.json - graph_security - G2: aws_db_instance.main is not encrypted at rest (storage_encrypted)
+[31mFAIL[0m - /home/ubuntu/iac-demo/plan.json - graph_security - G2: aws_ebs_volume.scratch is not encrypted (encrypted)
+[31mFAIL[0m - /home/ubuntu/iac-demo/plan.json - graph_security - G3: aws_security_group.open allows unrestricted egress to the internet (protocol=-1)
+[31mFAIL[0m - /home/ubuntu/iac-demo/plan.json - graph_security - G3: aws_vpc_security_group_egress_rule.all allows unrestricted IPv4 egress to the internet (ip_protocol=-1)
+
+[31m14 tests, 8 passed, 1 warning, 5 failures, 0 exceptions[0m

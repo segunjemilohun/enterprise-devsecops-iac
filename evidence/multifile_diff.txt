@@ -1,0 +1,16 @@
+--- tests/fixtures/bad/storage.tf	2026-11-24 13:48:48.221804735 +0100
++++ /home/ubuntu/iac-demo/storage.tf	2026-11-25 10:15:00.343614427 +0100
+@@ -37,3 +37,13 @@
+   target_bucket = aws_s3_bucket.logs.id
+   target_prefix = "data/"
+ }
++
++resource "aws_s3_bucket_server_side_encryption_configuration" "data" {
++  bucket = aws_s3_bucket.data.id
++
++  rule {
++    apply_server_side_encryption_by_default {
++      sse_algorithm = "AES256"
++    }
++  }
++}
