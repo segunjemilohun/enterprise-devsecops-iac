@@ -640,13 +640,45 @@ def find_open_egress(idx: Index, raw: dict[Path, bytes], masked: dict[Path, byte
     return findings
 
 
+# ---------------- unencrypted data sinks: always MANUAL ----------------
+SINK_GUIDANCE = {
+    "aws_db_instance": (
+        "storage_encrypted",
+        "Encryption at rest cannot be enabled in place; changing storage_encrypted forces "
+        "replacement and would destroy data. Snapshot the instance, copy the snapshot with "
+        "encryption (kms_key_id), restore it as a new aws_db_instance, cut over, then remove "
+        "the old one."),
+    "aws_ebs_volume": (
+        "encrypted",
+        "Encryption cannot be enabled in place; changing encrypted forces replacement and "
+        "would destroy data. Snapshot the volume, create an encrypted volume from the "
+        "snapshot, re-attach it, then remove the old volume."),
+}
+
+
+def find_sink_manual(idx: Index, masked: dict[Path, bytes]) -> list[Finding]:
+    """Never auto-patched: flipping the flag forces replacement (data loss)."""
+    findings: list[Finding] = []
+    for addr, b in sorted(idx.blocks.items()):
+        if b.labels[0] not in SINK_GUIDANCE:
+            continue
+        attr, guidance = SINK_GUIDANCE[b.labels[0]]
+        val = _literal(masked[b.path][b.body_start : b.body_end], attr)
+        if val == "true" or (val is not None and val != "false"):
+            continue  # encrypted, or a non-literal expression we cannot resolve
+        findings.append(Finding(
+            rule="G2-sink-encryption", address=addr, file=b.path.name, line=b.line,
+            cls="MANUAL", guidance=guidance))
+    return findings
+
+
 def plan_fixes(tf_dir: Path, profile=DEFAULT_PROFILE) -> tuple[Index, list[Finding]]:
     idx = index_dir(tf_dir)
     files = {p for b in idx.blocks.values() for p in [b.path]}
     raw = {p: p.read_bytes() for p in files}
     masked = {p: mask_comments(d) for p, d in raw.items()}
     findings = (find_s3_sse(idx, raw, masked) + find_open_egress(idx, raw, masked, profile)
-                + find_g1_manual(idx, masked))
+                + find_sink_manual(idx, masked) + find_g1_manual(idx, masked))
     return idx, findings
 
 
