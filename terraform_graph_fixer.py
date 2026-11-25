@@ -444,12 +444,209 @@ def find_g1_manual(idx: Index, masked: dict[Path, bytes]) -> list[Finding]:
     return findings
 
 
-def plan_fixes(tf_dir: Path) -> tuple[Index, list[Finding]]:
+# ---------------- open-egress fixer (G3) ----------------
+OPEN_CIDRS = {"0.0.0.0/0", "::/0"}
+DEFAULT_PROFILE = (("tcp", 443),)
+
+
+def parse_profile(text: str) -> tuple[tuple[str, int], ...]:
+    """'tcp/443,udp/53' -> (('tcp', 443), ('udp', 53)). The allowlist is an explicit policy choice."""
+    out: list[tuple[str, int]] = []
+    for part in text.split(","):
+        proto, _, port = part.strip().partition("/")
+        if proto not in ("tcp", "udp") or not port.isdigit() or not 1 <= int(port) <= 65535:
+            raise ValueError(f"bad egress profile entry {part!r}; use e.g. tcp/443 or udp/53")
+        if (proto, int(port)) not in out:
+            out.append((proto, int(port)))
+    return tuple(out)
+
+
+def _attr_re(key: str) -> re.Pattern:
+    return re.compile(rb"(?m)^([ \t]*)" + re.escape(key.encode()) + rb"([ \t]*)=([ \t]*)([^\r\n]*)")
+
+
+def _literal(masked: bytes, key: str) -> str | None:
+    m = _attr_re(key).search(masked)
+    return m.group(4).rstrip().decode() if m else None
+
+
+def _str(val: str | None) -> str | None:
+    m = re.fullmatch(r'"([^"]*)"', val or "")
+    return m.group(1) if m else None
+
+
+def _int(val: str | None) -> int | None:
+    try:
+        return int(val) if val is not None else None
+    except ValueError:
+        return None
+
+
+def _str_list(val: str | None) -> list[str] | None:
+    """Literal one-line list of strings, else None (variables, multi-line lists, ...)."""
+    m = re.fullmatch(r"\[(.*)\]", (val or "").strip())
+    if not m or re.sub(r'"[^"]*"|[\s,]', "", m.group(1)):
+        return None
+    return re.findall(r'"([^"]*)"', m.group(1))
+
+
+def _full_range(masked: bytes) -> bool:
+    return _int(_literal(masked, "from_port")) == 0 and _int(_literal(masked, "to_port")) == 65535
+
+
+def _verdict_sg_like(masked: bytes) -> str | None:
+    """'auto' | 'manual:<why>' | None (not provably open) for inline egress / aws_security_group_rule."""
+    v4, v6 = _literal(masked, "cidr_blocks"), _literal(masked, "ipv6_cidr_blocks")
+    l4, l6 = _str_list(v4), _str_list(v6)
+    if (v4 is not None and l4 is None) or (v6 is not None and l6 is None):
+        return None  # not statically resolvable: the plan-time Rego rule decides
+    cidrs = (l4 or []) + (l6 or [])
+    if not any(c in OPEN_CIDRS for c in cidrs):
+        return None
+    proto = _str(_literal(masked, "protocol"))
+    if not (proto in ("-1", "all") or _full_range(masked)):
+        return None
+    if any(c not in OPEN_CIDRS for c in cidrs):
+        return "manual:cidr list mixes open and private ranges; tightening would change the private ones"
+    for k in ("security_groups", "prefix_list_ids", "self"):
+        if _attr_re(k).search(masked):
+            return f"manual:rule also targets {k}; tightening would change those destinations"
+    return "auto"
+
+
+def _verdict_vpc(masked: bytes) -> str | None:
+    c4, c6 = _str(_literal(masked, "cidr_ipv4")), _str(_literal(masked, "cidr_ipv6"))
+    if not (c4 in OPEN_CIDRS or c6 in OPEN_CIDRS):
+        return None
+    proto = _str(_literal(masked, "ip_protocol"))
+    return "auto" if (proto in ("-1", "all") or _full_range(masked)) else None
+
+
+def _render(text: bytes, masked: bytes, sets: dict[str, str], anchor: str) -> bytes | None:
+    """Set attribute values (inserting missing ones after `anchor`, aligned for terraform fmt)."""
+    eol = _eol(text)
+    edits: list[Edit] = []
+    inserts: list[tuple[str, str]] = []
+    for key, val in sets.items():
+        m = _attr_re(key).search(masked)
+        if m:
+            start = m.start(4)
+            edits.append(Edit(Path("<block>"), start, start + len(m.group(4).rstrip()), val))
+        else:
+            inserts.append((key, val))
+    if inserts:
+        am = _attr_re(anchor).search(masked)
+        nl = text.find(b"\n", am.end()) if am else -1
+        if not am or nl == -1:
+            return None
+        indent = am.group(1).decode()
+        eq_col = len(indent) + len(anchor) + len(am.group(2))
+        lines = []
+        for k, v in inserts:
+            pad = eq_col - len(indent) - len(k)
+            if pad < 1:
+                return None
+            lines.append(f"{indent}{k}{' ' * pad}= {v}")
+        edits.append(Edit(Path("<block>"), nl + 1, nl + 1, eol.join(lines) + eol))
+    return apply_edits_to_bytes(text, edits)
+
+
+def _rename_resource(text: bytes, old: str, new: str) -> bytes | None:
+    pat = re.compile(rb'^(resource\s+"[^"]+"\s+)"' + re.escape(old.encode()) + rb'"')
+    out, n = pat.subn(lambda m: m.group(1) + b'"' + new.encode() + b'"', text, count=1)
+    return out if n else None
+
+
+def _profile_text(profile) -> str:
+    return ", ".join(f"{p}/{n}" for p, n in profile)
+
+
+def find_open_egress(idx: Index, raw: dict[Path, bytes], masked: dict[Path, bytes],
+                     profile=DEFAULT_PROFILE) -> list[Finding]:
+    findings: list[Finding] = []
+    for addr, b in sorted(idx.blocks.items()):
+        kind = b.labels[0]
+        r, m = raw[b.path], masked[b.path]
+        eol = _eol(r)
+        if kind == "aws_security_group":
+            inner = m[b.body_start : b.body_end]
+            for nb in scan_blocks(inner):
+                if nb.kind != "egress":
+                    continue
+                s, e = b.body_start + nb.start, b.body_start + nb.end
+                verdict = _verdict_sg_like(m[s:e])
+                if verdict is None:
+                    continue
+                line = r.count(b"\n", 0, s) + 1
+                where = dict(rule="G3-open-egress", address=addr, file=b.path.name, line=line)
+                ls = r.rfind(b"\n", 0, s) + 1
+                indent = r[ls:s]
+                if verdict != "auto" or indent.strip():
+                    why = verdict[7:] if verdict != "auto" else "egress block is not alone on its line"
+                    findings.append(Finding(cls="MANUAL", guidance=f"Open egress block: {why}.", **where))
+                    continue
+                copies = []
+                for proto, port in profile:
+                    copies.append(_render(r[s:e], m[s:e], {
+                        "protocol": f'"{proto}"', "from_port": str(port), "to_port": str(port)},
+                        "protocol"))
+                if any(c is None for c in copies):
+                    findings.append(Finding(cls="MANUAL", guidance="Could not rewrite egress block safely.", **where))
+                    continue
+                text = (eol.encode() + indent).join(copies).decode()
+                findings.append(Finding(
+                    cls="AUTO", guidance=f"Restrict open egress block to {_profile_text(profile)}",
+                    edits=[Edit(b.path, s, e, text)], **where))
+        elif kind in ("aws_security_group_rule", "aws_vpc_security_group_egress_rule"):
+            text_m = m[b.start : b.end]
+            vpc = kind == "aws_vpc_security_group_egress_rule"
+            if not vpc and _str(_literal(text_m, "type")) != "egress":
+                continue
+            verdict = _verdict_vpc(text_m) if vpc else _verdict_sg_like(text_m)
+            if verdict is None:
+                continue
+            where = dict(rule="G3-open-egress", address=addr, file=b.path.name, line=b.line)
+            if COUNT_RE.search(text_m):
+                findings.append(Finding(cls="MANUAL", guidance=(
+                    "Open egress rule uses count/for_each; restrict it by hand."), **where))
+                continue
+            if verdict != "auto":
+                findings.append(Finding(cls="MANUAL", guidance=f"Open egress rule: {verdict[7:]}.", **where))
+                continue
+            pk = "ip_protocol" if vpc else "protocol"
+            name = b.labels[1]
+            copies, clash = [], None
+            for i, (proto, port) in enumerate(profile):
+                body = _render(r[b.start : b.end], text_m, {
+                    pk: f'"{proto}"', "from_port": str(port), "to_port": str(port)}, pk)
+                if body is not None and i > 0:
+                    new = f"{name}_{proto}_{port}"
+                    if f"{kind}.{new}" in idx.blocks:
+                        clash = new
+                    body = _rename_resource(body, name, new)
+                if body is None:
+                    copies = None
+                    break
+                copies.append(body)
+            if clash or copies is None:
+                findings.append(Finding(cls="MANUAL", guidance=(
+                    "Could not generate restricted copies safely"
+                    + (f" (name {clash} already exists)" if clash else "") + "."), **where))
+                continue
+            text = (eol.encode() * 2).join(copies).decode()
+            findings.append(Finding(
+                cls="AUTO", guidance=f"Restrict open egress rule to {_profile_text(profile)}",
+                edits=[Edit(b.path, b.start, b.end, text)], **where))
+    return findings
+
+
+def plan_fixes(tf_dir: Path, profile=DEFAULT_PROFILE) -> tuple[Index, list[Finding]]:
     idx = index_dir(tf_dir)
     files = {p for b in idx.blocks.values() for p in [b.path]}
     raw = {p: p.read_bytes() for p in files}
     masked = {p: mask_comments(d) for p, d in raw.items()}
-    findings = find_s3_sse(idx, raw, masked) + find_g1_manual(idx, masked)
+    findings = (find_s3_sse(idx, raw, masked) + find_open_egress(idx, raw, masked, profile)
+                + find_g1_manual(idx, masked))
     return idx, findings
 
 
@@ -550,6 +747,8 @@ def main(argv: list[str] | None = None) -> int:
     mode.add_argument("--apply", action="store_true", help="apply fixes transactionally")
     ap.add_argument("--index", action="store_true", help="list resource addresses and exit")
     ap.add_argument("--report", type=Path, help="write JSON report here")
+    ap.add_argument("--egress-profile", default="tcp/443",
+                    help="allowlist replacing open egress, e.g. tcp/443,udp/53 (default tcp/443)")
     ap.add_argument("--tflint-config", type=Path,
                     help="tflint config (default: ./.tflint.hcl when present)")
     a = ap.parse_args(argv)
@@ -567,7 +766,12 @@ def main(argv: list[str] | None = None) -> int:
     if a.index:
         return 0
 
-    _, findings = plan_fixes(a.tf_dir)
+    try:
+        profile = parse_profile(a.egress_profile)
+    except ValueError as e:
+        print(f"REFUSED {e}")
+        return 2
+    _, findings = plan_fixes(a.tf_dir, profile)
     edits = [e for f in findings if f.cls == "AUTO" for e in f.edits]
     report = {"findings": [f.to_dict() for f in findings], "applied": False, "checks": []}
     for f in findings:

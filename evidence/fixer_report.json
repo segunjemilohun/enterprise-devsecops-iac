@@ -9,6 +9,22 @@
       "action_or_guidance": "Append aws_s3_bucket_server_side_encryption_configuration.data (AES256) referencing aws_s3_bucket.data.id"
     },
     {
+      "rule": "G3-open-egress",
+      "address": "aws_security_group.open",
+      "file": "network.tf",
+      "line": 4,
+      "class": "AUTO",
+      "action_or_guidance": "Restrict open egress block to tcp/443"
+    },
+    {
+      "rule": "G3-open-egress",
+      "address": "aws_vpc_security_group_egress_rule.all",
+      "file": "network.tf",
+      "line": 12,
+      "class": "AUTO",
+      "action_or_guidance": "Restrict open egress rule to tcp/443"
+    },
+    {
       "rule": "G1-privesc-pair",
       "address": "aws_iam_role.deployer",
       "file": "iam.tf",
