@@ -1,0 +1,5 @@
+[31mFAIL[0m - tests/fixtures/bad/plan.json - graph_security - G1: aws_iam_role.deployer can iam:PassRole on a wildcard target and create compute (lambda:createfunction)
+[31mFAIL[0m - tests/fixtures/bad/plan.json - graph_security - G3: aws_security_group.open allows unrestricted egress to the internet (protocol=-1)
+[31mFAIL[0m - tests/fixtures/bad/plan.json - graph_security - G3: aws_vpc_security_group_egress_rule.all allows unrestricted IPv4 egress to the internet (ip_protocol=-1)
+
+[31m7 tests, 4 passed, 0 warnings, 3 failures, 0 exceptions[0m

@@ -1,0 +1,119 @@
+name: graph-policy-fixer
+on:
+  pull_request:
+    paths:
+      - "policies/**"
+      - "terraform_graph_fixer.py"
+      - "scripts/fix_all.py"
+      - "scripts/make_plan.sh"
+      - "tests/**"
+      - ".tflint.hcl"
+      - ".github/workflows/graph-policy-fixer.yml"
+permissions:
+  contents: read
+
+env:
+  CONFTEST_VERSION: "0.69.0"
+  OPA_VERSION: "1.20.1"
+
+jobs:
+  policies-and-tests:
+    name: OPA, pytest, tflint, fixture expectations
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.16.1"
+          terraform_wrapper: false
+      - uses: terraform-linters/setup-tflint@v4
+        with:
+          tflint_version: "v0.66.0"
+
+      - name: Install OPA and Conftest (pinned)
+        run: |
+          set -euo pipefail
+          curl -fL --retry 3 "https://openpolicyagent.org/downloads/v${OPA_VERSION}/opa_linux_amd64_static" -o opa
+          chmod +x opa && sudo mv opa /usr/local/bin/opa
+          curl -fL --retry 3 "https://github.com/open-policy-agent/conftest/releases/download/v${CONFTEST_VERSION}/conftest_${CONFTEST_VERSION}_Linux_x86_64.tar.gz" | tar xz conftest
+          sudo mv conftest /usr/local/bin/conftest
+          opa version | head -1; conftest --version; tflint --version | head -1; terraform version | head -1
+
+      - name: Rego check and unit tests
+        run: |
+          opa check --strict policies/
+          opa test policies/ -v
+
+      - name: pytest (scanner, fixers, rollback, orchestrator)
+        run: |
+          pip install pytest
+          pytest -q
+
+      - name: tflint gate on the fixture (local .tflint.hcl)
+        run: tflint --chdir=tests/fixtures/bad --config="$PWD/.tflint.hcl"
+
+      - name: Fixture MUST fail graph_security exactly as documented
+        run: |
+          scripts/make_plan.sh tests/fixtures/bad
+          conftest test tests/fixtures/bad/plan.json -p policies -n graph_security -o json > "$RUNNER_TEMP/bad.json" || true
+          n=$(jq '[.[] | (.failures // []) | length] | add' "$RUNNER_TEMP/bad.json")
+          echo "graph_security failures on the bad fixture: $n (expected 6)"
+          test "$n" -eq 6
+
+  fixture-demo:
+    name: --mode all end to end on a COPY of the fixture
+    runs-on: ubuntu-latest
+    needs: policies-and-tests
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.16.1"
+          terraform_wrapper: false
+      - uses: terraform-linters/setup-tflint@v4
+        with:
+          tflint_version: "v0.66.0"
+
+      - name: Install tools
+        run: |
+          set -euo pipefail
+          pip install checkov==3.3.15
+          curl -fL --retry 3 "https://github.com/open-policy-agent/conftest/releases/download/v${CONFTEST_VERSION}/conftest_${CONFTEST_VERSION}_Linux_x86_64.tar.gz" | tar xz conftest
+          sudo mv conftest /usr/local/bin/conftest
+
+      - name: Copy fixture (tracked files are never modified)
+        run: cp -r tests/fixtures/bad "$RUNNER_TEMP/demo"
+
+      - name: Scan the copy (Checkov findings feed the PR #15 autofixer)
+        run: checkov -d "$RUNNER_TEMP/demo" --framework terraform -o json --soft-fail > "$RUNNER_TEMP/checkov.json"
+
+      - name: fix_all --apply (autofixer then graph fixer, one rollback boundary)
+        run: |
+          python scripts/fix_all.py --tf-dir "$RUNNER_TEMP/demo" \
+            --findings "$RUNNER_TEMP/checkov.json" --apply \
+            --report "$RUNNER_TEMP/fix_all_report.json"
+
+      - name: Findings must drop after the fix
+        run: |
+          scripts/make_plan.sh "$RUNNER_TEMP/demo"
+          conftest test "$RUNNER_TEMP/demo/plan.json" -p policies -n graph_security -o json > "$RUNNER_TEMP/after.json" || true
+          n=$(jq '[.[] | (.failures // []) | length] | add' "$RUNNER_TEMP/after.json")
+          echo "graph_security failures after fix_all: $n (was 6)"
+          test "$n" -lt 6
+          diff -ru tests/fixtures/bad "$RUNNER_TEMP/demo" -x .terraform -x plan.json -x tfplan > "$RUNNER_TEMP/fix_all.diff" || true
+
+      - name: Tracked files untouched
+        run: git diff --exit-code -- tests/fixtures
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fix-all-evidence
+          path: |
+            ${{ runner.temp }}/fix_all_report.json
+            ${{ runner.temp }}/fix_all.diff
+            ${{ runner.temp }}/before.json
+            ${{ runner.temp }}/after.json

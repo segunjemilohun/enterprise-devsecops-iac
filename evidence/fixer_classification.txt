@@ -1,0 +1,6 @@
+[AUTO] G2-s3-sse aws_s3_bucket.data (storage.tf:1): Append aws_s3_bucket_server_side_encryption_configuration.
+[AUTO] G3-open-egress aws_security_group.open (network.tf:4): Restrict open egress block to tcp/443
+[AUTO] G3-open-egress aws_vpc_security_group_egress_rule.all (network.tf:12): Restrict open egress rule to tcp
+[MANUAL] G2-sink-encryption aws_db_instance.main (storage.tf:19): Encryption at rest cannot be enabled in plac
+[MANUAL] G2-sink-encryption aws_ebs_volume.scratch (storage.tf:30): Encryption cannot be enabled in place; cha
+[MANUAL] G1-privesc-pair aws_iam_role.deployer (iam.tf:1): Role can iam:PassRole and create compute (lambda:cr

@@ -1,0 +1,1 @@
+[MANUAL] G1-privesc-pair aws_iam_role.deployer (iam.tf:1): Role can iam:PassRole and create compute (lambda:createfunction). Scope iam:PassRole Resource to specific role ARNs, add an iam:PassedToService condition, and split the creation permission into a separate role. Not auto-fixed: the right scope depends on which role and service need it.

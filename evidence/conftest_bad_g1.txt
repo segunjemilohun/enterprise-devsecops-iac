@@ -1,0 +1,3 @@
+[31mFAIL[0m - tests/fixtures/bad/plan.json - graph_security - G1: aws_iam_role.deployer can iam:PassRole on a wildcard target and create compute (lambda:createfunction)
+
+[31m3 tests, 2 passed, 0 warnings, 1 failure, 0 exceptions[0m

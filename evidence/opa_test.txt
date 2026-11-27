@@ -1,0 +1,100 @@
+policies/graph_security_g3_test.rego:32:
+data.graph_security_test.test_g3_inline_all_protocol_flagged: PASS (2.165722ms)
+
+policies/graph_security_g2_test.rego:144:
+data.graph_security_test.test_g2_unrelated_target_does_not_exempt: PASS (8.050909ms)
+
+policies/graph_security_g3_test.rego:37:
+data.graph_security_test.test_g3_inline_ipv6_flagged: PASS (3.953831ms)
+
+policies/graph_security_g2_test.rego:35:
+data.graph_security_test.test_g2_bucket_without_sse_flagged: PASS (3.331506ms)
+
+policies/graph_security_g3_test.rego:42:
+data.graph_security_test.test_g3_inline_full_tcp_range_flagged: PASS (5.267495ms)
+policies/graph_security_g3_test.rego:47:
+data.graph_security_test.test_g3_sg_rule_egress_flagged: PASS (10.166251ms)
+policies/graph_security_g3_test.rego:57:
+data.graph_security_test.test_g3_vpc_egress_rule_v6_flagged: PASS (7.201482ms)
+policies/graph_security_g3_test.rego:63:
+data.graph_security_test.test_g3_https_only_allowed: PASS (2.140276ms)
+policies/graph_security_g3_test.rego:68:
+data.graph_security_test.test_g3_all_protocol_to_private_cidr_safe: PASS (2.719511ms)
+policies/graph_security_g3_test.rego:73:
+data.graph_security_test.test_g3_vpc_rule_https_safe: PASS (949.403µs)
+policies/graph_security_g3_test.rego:79:
+data.graph_security_test.test_g3_ingress_rule_ignored: PASS (858.559µs)
+policies/graph_security_g3_test.rego:52:
+data.graph_security_test.test_g3_vpc_egress_rule_v4_flagged: PASS (19.79619ms)
+policies/graph_security_g3_test.rego:84:
+data.graph_security_test.test_g3_empty_egress_safe: PASS (813.524µs)
+policies/graph_security_g3_test.rego:89:
+data.graph_security_test.test_g3_protocol_word_all_flagged: PASS (1.270699ms)
+policies/graph_security_g3_test.rego:94:
+data.graph_security_test.test_g3_null_ports_with_tcp_not_flagged: PASS (1.063176ms)
+policies/graph_security_g3_test.rego:99:
+data.graph_security_test.test_g3_dual_stack_single_block_collapses_to_one_message: PASS (1.454243ms)
+
+policies/graph_security_test.rego:46:
+data.graph_security_test.test_g1_cross_policy_same_role_flagged: PASS (24.11509ms)
+policies/graph_security_test.rego:38:
+data.graph_security_test.test_g1_single_policy_pair_flagged: PASS (33.726438ms)
+policies/graph_security_test.rego:80:
+data.graph_security_test.test_g1_wildcard_actions_flagged: PASS (9.560178ms)
+policies/graph_security_test.rego:58:
+data.graph_security_test.test_g1_attachment_path_flagged: PASS (23.063847ms)
+policies/graph_security_test.rego:97:
+data.graph_security_test.test_g1_passrole_only_safe: PASS (8.435743ms)
+policies/graph_security_test.rego:88:
+data.graph_security_test.test_g1_full_admin_star_flagged: PASS (25.184403ms)
+policies/graph_security_test.rego:105:
+data.graph_security_test.test_g1_split_across_different_roles_safe: PASS (4.395329ms)
+policies/graph_security_test.rego:117:
+data.graph_security_test.test_g1_scoped_passrole_arn_safe: PASS (2.512702ms)
+policies/graph_security_test.rego:129:
+data.graph_security_test.test_g1_deny_effect_ignored: PASS (2.101851ms)
+policies/graph_security_test.rego:138:
+data.graph_security_test.test_g1_passed_to_service_condition_downgrades: PASS (2.407986ms)
+policies/graph_security_test.rego:150:
+data.graph_security_test.test_g1_notaction_warns: PASS (16.12143ms)
+
+policies/graph_security_g2_test.rego:84:
+data.graph_security_test.test_g2_db_encrypted_with_logs_clean: PASS (1.996054ms)
+
+policies/graph_security_test.rego:159:
+data.graph_security_test.test_g1_unknown_policy_warns_not_silent: PASS (19.260236ms)
+
+policies/graph_security_g2_test.rego:40:
+data.graph_security_test.test_g2_bucket_sse_for_other_bucket_still_flagged: PASS (1.559874ms)
+policies/graph_security_g2_test.rego:45:
+data.graph_security_test.test_g2_db_unencrypted_flagged: PASS (812.046µs)
+policies/graph_security_g2_test.rego:50:
+data.graph_security_test.test_g2_ebs_unencrypted_flagged: PASS (1.05179ms)
+policies/graph_security_g2_test.rego:55:
+data.graph_security_test.test_g2_secret_without_kms_flagged: PASS (777.051µs)
+policies/graph_security_g2_test.rego:60:
+data.graph_security_test.test_g2_dynamodb_without_sse_flagged: PASS (941.296µs)
+policies/graph_security_g2_test.rego:65:
+data.graph_security_test.test_g2_bucket_without_logging_warns: PASS (1.78267ms)
+policies/graph_security_g2_test.rego:78:
+data.graph_security_test.test_g2_bucket_with_sse_and_logging_clean: PASS (3.904535ms)
+policies/graph_security_g2_test.rego:111:
+data.graph_security_test.test_g2_db_missing_log_exports_field_warns: PASS (2.117121ms)
+policies/graph_security_g2_test.rego:90:
+data.graph_security_test.test_g2_ebs_encrypted_clean: PASS (705.471µs)
+policies/graph_security_g2_test.rego:95:
+data.graph_security_test.test_g2_secret_with_kms_clean: PASS (690.915µs)
+policies/graph_security_g2_test.rego:71:
+data.graph_security_test.test_g2_db_without_log_exports_warns: PASS (10.593664ms)
+policies/graph_security_g2_test.rego:100:
+data.graph_security_test.test_g2_dynamodb_sse_enabled_clean: PASS (4.165238ms)
+policies/graph_security_g2_test.rego:106:
+data.graph_security_test.test_g2_db_missing_encrypted_field_flagged: PASS (2.112511ms)
+policies/graph_security_g2_test.rego:123:
+data.graph_security_test.test_g2_db_null_log_exports_warns: PASS (1.425713ms)
+policies/graph_security_g2_test.rego:116:
+data.graph_security_test.test_g2_unrelated_resource_ignored: PASS (1.683055ms)
+policies/graph_security_g2_test.rego:128:
+data.graph_security_test.test_g2_log_target_bucket_not_warned: PASS (3.916471ms)
+--------------------------------------------------------------------------------
+PASS: 45/45

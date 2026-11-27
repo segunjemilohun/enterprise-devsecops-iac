@@ -1,0 +1,59 @@
+{
+  "findings": [
+    {
+      "rule": "G2-s3-sse",
+      "address": "aws_s3_bucket.data",
+      "file": "storage.tf",
+      "line": 1,
+      "class": "AUTO",
+      "action_or_guidance": "Append aws_s3_bucket_server_side_encryption_configuration.data (AES256) referencing aws_s3_bucket.data.id"
+    },
+    {
+      "rule": "G3-open-egress",
+      "address": "aws_security_group.open",
+      "file": "network.tf",
+      "line": 4,
+      "class": "AUTO",
+      "action_or_guidance": "Restrict open egress block to tcp/443"
+    },
+    {
+      "rule": "G3-open-egress",
+      "address": "aws_vpc_security_group_egress_rule.all",
+      "file": "network.tf",
+      "line": 12,
+      "class": "AUTO",
+      "action_or_guidance": "Restrict open egress rule to tcp/443"
+    },
+    {
+      "rule": "G1-privesc-pair",
+      "address": "aws_iam_role.deployer",
+      "file": "iam.tf",
+      "line": 1,
+      "class": "MANUAL",
+      "action_or_guidance": "Role can iam:PassRole and create compute (lambda:createfunction). Scope iam:PassRole Resource to specific role ARNs, add an iam:PassedToService condition, and split the creation permission into a separate role. Not auto-fixed: the right scope depends on which role and service need it."
+    }
+  ],
+  "applied": true,
+  "checks": [
+    {
+      "name": "fmt",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "init",
+      "status": "PASS",
+      "detail": "\u001b[0m\u001b[1mInitializing provider plugins...\u001b[0m\n- Reusing previous version of hashicorp/aws from the dependency lock file\n- Using previously-installed hashicorp/aws v5.100.0\n\n\u001b[0m\u001b[1m\u001b[32mTerraform has been successfully initialized!\u001b[0m\u001b[32m\u001b[0m\n\u001b[0m\u001b[32m\nYou may now begin working with Terraform. Try running \"terraform plan\" to see\nany changes that are required for your infrastructure. All Terraform commands\nshould now work.\n\nIf you ever set or change modules or backend configuration for Terraform,\nrerun this command to reinitialize your working directory. If you forget, other\ncommands will detect it and remind you to do so if necessary.\u001b[0m"
+    },
+    {
+      "name": "validate",
+      "status": "PASS",
+      "detail": "\u001b[32m\u001b[1mSuccess!\u001b[0m The configuration is valid.\n\u001b[0m"
+    },
+    {
+      "name": "tflint",
+      "status": "PASS",
+      "detail": ""
+    }
+  ]
+}

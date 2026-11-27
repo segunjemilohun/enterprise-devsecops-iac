@@ -1,0 +1,29 @@
+============================= test session starts ==============================
+platform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.7.0 -- /usr/bin/python3
+cachedir: .pytest_cache
+rootdir: /home/ubuntu/enterprise-devsecops-iac
+collecting ... collected 21 items
+
+tests/py/test_scanner.py::test_brace_inside_string PASSED                [  4%]
+tests/py/test_scanner.py::test_hash_and_slashes_inside_string PASSED     [  9%]
+tests/py/test_scanner.py::test_comments_with_braces PASSED               [ 14%]
+tests/py/test_scanner.py::test_commented_out_resource_is_not_indexed PASSED [ 19%]
+tests/py/test_scanner.py::test_heredoc_containing_resource_text PASSED   [ 23%]
+tests/py/test_scanner.py::test_indented_heredoc_with_unbalanced_brace PASSED [ 28%]
+tests/py/test_scanner.py::test_nested_blocks PASSED                      [ 33%]
+tests/py/test_scanner.py::test_interpolation_with_nested_quote_and_brace PASSED [ 38%]
+tests/py/test_scanner.py::test_escaped_interpolation_is_literal PASSED   [ 42%]
+tests/py/test_scanner.py::test_crlf_offsets_slice_exactly PASSED         [ 47%]
+tests/py/test_scanner.py::test_body_span PASSED                          [ 52%]
+tests/py/test_scanner.py::test_non_resource_blocks_have_kinds PASSED     [ 57%]
+tests/py/test_scanner.py::test_unterminated_block_raises PASSED          [ 61%]
+tests/py/test_scanner.py::test_unterminated_string_raises PASSED         [ 66%]
+tests/py/test_scanner.py::test_unterminated_heredoc_raises PASSED        [ 71%]
+tests/py/test_scanner.py::test_index_across_files PASSED                 [ 76%]
+tests/py/test_scanner.py::test_duplicate_address_reported_not_crashed PASSED [ 80%]
+tests/py/test_scanner.py::test_empty_dir PASSED                          [ 85%]
+tests/py/test_scanner.py::test_bad_file_recorded_other_files_still_indexed PASSED [ 90%]
+tests/py/test_scanner.py::test_indexer_ignores_subdirs_and_non_tf PASSED [ 95%]
+tests/py/test_scanner.py::test_real_fixture_if_present PASSED            [100%]
+
+============================== 21 passed in 0.28s ==============================

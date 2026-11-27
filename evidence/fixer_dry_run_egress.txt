@@ -1,0 +1,46 @@
+[AUTO] G2-s3-sse aws_s3_bucket.data (storage.tf:1): Append aws_s3_bucket_server_side_encryption_configuration.data (AES256) referencing aws_s3_bucket.data.id
+[AUTO] G3-open-egress aws_security_group.open (network.tf:4): Restrict open egress block to tcp/443
+[AUTO] G3-open-egress aws_vpc_security_group_egress_rule.all (network.tf:12): Restrict open egress rule to tcp/443
+[MANUAL] G1-privesc-pair aws_iam_role.deployer (iam.tf:1): Role can iam:PassRole and create compute (lambda:createfunction). Scope iam:PassRole Resource to specific role ARNs, add an iam:PassedToService condition, and split the creation permission into a separate role. Not auto-fixed: the right scope depends on which role and service need it.
+
+--- a/network.tf
++++ b/network.tf
+@@ -2,15 +2,17 @@
+   name = "open-egress"
+ 
+   egress {
+-    from_port   = 0
+-    to_port     = 0
+-    protocol    = "-1"
++    from_port   = 443
++    to_port     = 443
++    protocol    = "tcp"
+     cidr_blocks = ["0.0.0.0/0"]
+   }
+ }
+ 
+ resource "aws_vpc_security_group_egress_rule" "all" {
+   security_group_id = aws_security_group.open.id
+-  ip_protocol       = "-1"
++  ip_protocol       = "tcp"
++  from_port         = 443
++  to_port           = 443
+   cidr_ipv4         = "0.0.0.0/0"
+ }
+--- a/storage.tf
++++ b/storage.tf
+@@ -37,3 +37,13 @@
+   target_bucket = aws_s3_bucket.logs.id
+   target_prefix = "data/"
+ }
++
++resource "aws_s3_bucket_server_side_encryption_configuration" "data" {
++  bucket = aws_s3_bucket.data.id
++
++  rule {
++    apply_server_side_encryption_by_default {
++      sse_algorithm = "AES256"
++    }
++  }
++}
+
